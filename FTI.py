@@ -168,7 +168,7 @@ def clipped(x,a,b):
 		return b
 	return x
 
-def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right=0.1):
+def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right=0.01):
 
 	object_score=uniform(0,1,object_n)
 
@@ -595,7 +595,7 @@ def MAE(A,B):
 
 def Synthetic():
 
-	object_n=30
+	object_n=20
 	worker_n=100
 	category_n=10
 	compare_ratio=1.0
@@ -708,95 +708,95 @@ def realworld_crime():
 				label.append(fname.split('.')[0][6:])
 			f.close()
 
-			# if len(answer)<3:
-			# 	print 'Ignore %s'%fname
-			# 	continue
+			if len(answer)<3:
+				print 'Ignore %s'%fname
+				continue
 
-			# print fname
+			print fname
 
-			# esti_truth,bias,sigma,quality=FTI(answer)
-			# print 'FTI'
-			# print MAE(esti_truth,truth),
-			# for i in range(0,len(esti_truth)):
-			# 	for j in range(0,len(esti_truth[i])):
-			# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-			# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-			# precision=TPr/(TPr+FPr)
-			# recall=TPr/(TPr+FNr)
-			# print precision,recall,2*precision*recall/(precision+recall)
-			# print 'Mean bias'
-			# print mean_bias(bias)
+			esti_truth,bias,sigma,quality=FTI(answer)
+			print 'FTI'
+			print MAE(esti_truth,truth),
+			for i in range(0,len(esti_truth)):
+				for j in range(0,len(esti_truth[i])):
+					esti_truth[i][j]=int(esti_truth[i][j]>0.5)
+			TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+			precision=TPr/(TPr+FPr)
+			recall=TPr/(TPr+FNr)
+			print precision,recall,2*precision*recall/(precision+recall)
+			print 'Mean bias'
+			print mean_bias(bias)
 
-			# esti_truth,bias,sigma,quality=NTI(answer)
-			# print 'NTI'
-			# print MAE(esti_truth,truth),
-			# for i in range(0,len(esti_truth)):
-			# 	for j in range(0,len(esti_truth[i])):
-			# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-			# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-			# precision=TPr/(TPr+FPr)
-			# recall=TPr/(TPr+FNr)
-			# print precision,recall,2*precision*recall/(precision+recall)
-			# print ''
+			esti_truth,bias,sigma,quality=NTI(answer)
+			print 'NTI'
+			print MAE(esti_truth,truth),
+			for i in range(0,len(esti_truth)):
+				for j in range(0,len(esti_truth[i])):
+					esti_truth[i][j]=int(esti_truth[i][j]>0.5)
+			TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+			precision=TPr/(TPr+FPr)
+			recall=TPr/(TPr+FNr)
+			print precision,recall,2*precision*recall/(precision+recall)
+			print ''
 
-	avg_bias=None
-	avg_quality=[]
-	turn=333
-	for i in range(0,turn):
-		print i
-		esti_truth,bias,sigma,quality=FTI(all_answer)
-		if avg_bias==None:
-			avg_bias=bias
-		else:
-			avg_bias=matrix_add(avg_bias,bias)
-		if len(avg_quality)==0:
-			avg_quality=np.array(quality)
-		else:
-			avg_quality+=np.array(quality)
+	# avg_bias=None
+	# avg_quality=[]
+	# turn=333
+	# for i in range(0,turn):
+	# 	print i
+	# 	esti_truth,bias,sigma,quality=FTI(all_answer)
+	# 	if avg_bias==None:
+	# 		avg_bias=bias
+	# 	else:
+	# 		avg_bias=matrix_add(avg_bias,bias)
+	# 	if len(avg_quality)==0:
+	# 		avg_quality=np.array(quality)
+	# 	else:
+	# 		avg_quality+=np.array(quality)
 
-	avg_quality/=turn
+	# avg_quality/=turn
 
-	for i in range(0,len(avg_bias)):
-		for j in range(0,len(avg_bias[i])):
-			if avg_bias[i][j]!=None:
-				avg_bias[i][j]/=turn
+	# for i in range(0,len(avg_bias)):
+	# 	for j in range(0,len(avg_bias[i])):
+	# 		if avg_bias[i][j]!=None:
+	# 			avg_bias[i][j]/=turn
 
-	f=open('crime_bias.txt','w')
-	for i in range(0,len(avg_bias)):
-		f.write(label[i]+'\t')
-		for j in range(0,len(avg_bias[i])):
-			f.write(str(avg_bias[i][j])+'\t')
-		f.write(str(avg_quality[i]*len(avg_quality))+'\n')
-	f.close()
+	# f=open('crime_bias.txt','w')
+	# for i in range(0,len(avg_bias)):
+	# 	f.write(label[i]+'\t')
+	# 	for j in range(0,len(avg_bias[i])):
+	# 		f.write(str(avg_bias[i][j])+'\t')
+	# 	f.write(str(avg_quality[i]*len(avg_quality))+'\n')
+	# f.close()
 
-	# print 'ALL'
-	# esti_truth,bias,sigma,quality=FTI(all_answer)
-	# print 'FTI'
-	# print 'Overall MAE :',MAE(esti_truth,truth)
-	# for i in range(0,len(esti_truth)):
-	# 	for j in range(0,len(esti_truth[i])):
-	# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-	# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-	# precision=TPr/(TPr+FPr)
-	# recall=TPr/(TPr+FNr)
-	# print precision,recall,2*precision*recall/(precision+recall)
-	# print 'Mean bias'
-	# print mean_bias(bias)
-	# print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
+	print 'ALL'
+	esti_truth,bias,sigma,quality=FTI(all_answer)
+	print 'FTI'
+	print 'Overall MAE :',MAE(esti_truth,truth)
+	for i in range(0,len(esti_truth)):
+		for j in range(0,len(esti_truth[i])):
+			esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
+	TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+	precision=TPr/(TPr+FPr)
+	recall=TPr/(TPr+FNr)
+	print precision,recall,2*precision*recall/(precision+recall)
+	print 'Mean bias'
+	print mean_bias(bias)
+	print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
 
-	# esti_truth,bias,sigma,quality=NTI(all_answer)
-	# print 'NTI'
-	# print 'Overall MAE :',MAE(esti_truth,truth)
-	# for i in range(0,len(esti_truth)):
-	# 	for j in range(0,len(esti_truth[i])):
-	# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-	# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-	# precision=TPr/(TPr+FPr)
-	# recall=TPr/(TPr+FNr)
-	# print precision,recall,2*precision*recall/(precision+recall)
-	# print ''
-	# print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
+	esti_truth,bias,sigma,quality=NTI(all_answer)
+	print 'NTI'
+	print 'Overall MAE :',MAE(esti_truth,truth)
+	for i in range(0,len(esti_truth)):
+		for j in range(0,len(esti_truth[i])):
+			esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
+	TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+	precision=TPr/(TPr+FPr)
+	recall=TPr/(TPr+FNr)
+	print precision,recall,2*precision*recall/(precision+recall)
+	print ''
+	print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
 
 if __name__=='__main__':
-	realworld_crime()
-	# Synthetic()
+	# realworld_crime()
+	Synthetic()
