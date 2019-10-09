@@ -168,7 +168,7 @@ def clipped(x,a,b):
 		return b
 	return x
 
-def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right=0.01):
+def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right=0.00):
 
 	object_score=uniform(0,1,object_n)
 
@@ -176,7 +176,7 @@ def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right
 
 	objects=[[] for i in range(0,category_n)]
 
-	portion=uniform(0.1,0.3,worker_n)
+	portion=uniform(0.1,0.2,worker_n)
 
 	task_list=[]
 	for i in range(0,object_n):
@@ -203,8 +203,10 @@ def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right
 		bias.append([])
 		for j in range(0,category_n):
 			# bias[i].append(0.1)
-			bias[i].append(normal(skewness_right,0.15))
-
+			if uniform(0,1)<0.5:
+				bias[i].append(poisson(10)*0.01)
+			else:
+				bias[i].append(-poisson(10)*0.01)
 	sigma=[]
 	for i in range(0,worker_n):
 		sigma.append(uniform(0.01,0.2))
@@ -321,7 +323,7 @@ def FTI(answer):
 
 	#Step 0: Give random initial numbers
 	truth=[[uniform(0,1) for k in range(0,r[j])] for j in range(0,m)]
-	bias=[[uniform(-0.1,0.1) for j in range(0,m)] for i in range(0,n)]
+	bias=[[uniform(-0.01,0.01) for j in range(0,m)] for i in range(0,n)]
 	sigma=[uniform(0,0.2) for i in range(0,n)]
 	quality=[1.0/n for i in range(0,n)]
 	last_truth=np.array([])
@@ -392,7 +394,7 @@ def FTI(answer):
 				for k in range(0,r[j]):
 					if answer[i][j][k]!=None:
 						Ns+=1
-						down+=(answer[i][j][k]-truth[j][k])**2
+						down+=(answer[i][j][k]-truth[j][k]-bias[i][j])**2
 			up+=chi2.ppf(q=0.95,df=Ns)
 			quality[i]=up/down
 
@@ -597,9 +599,9 @@ def Synthetic():
 
 	object_n=20
 	worker_n=100
-	category_n=10
+	category_n=5
 	compare_ratio=1.0
-
+	turn=100
 
 	print 'Number of objects:',object_n
 	print 'Number of workers:',worker_n
@@ -613,7 +615,7 @@ def Synthetic():
 
 		result=[[],[],[]]
 
-		for t in range(0,20):
+		for t in range(0,turn):
 
 			print ''
 			print '#'*30
@@ -638,7 +640,7 @@ def Synthetic():
 			result[0].append(tau0)
 
 			print 'Running normal truth inference...'
-			score,NTI_ranking,NTI_truth=NTI_main(answer=answer,objects=objects,turn=10)
+			score,NTI_ranking,NTI_truth=NTI_main(answer=answer,objects=objects,turn=1)
 			tau1=tau_distance(true_ranking,NTI_ranking)
 			print NTI_ranking,tau1
 			#print 'MAE between truth:',MAE(truth,NTI_truth)
@@ -646,7 +648,7 @@ def Synthetic():
 			result[1].append(tau1)
 
 			print 'Running fair truth inference...'
-			score,FTI_ranking,FTI_truth=FTI_main(answer=answer,objects=objects,turn=10)
+			score,FTI_ranking,FTI_truth=FTI_main(answer=answer,objects=objects,turn=1)
 			tau2=tau_distance(true_ranking,FTI_ranking)
 			print FTI_ranking,tau2
 			#print 'MAE between truth:',MAE(truth,FTI_truth)
@@ -664,7 +666,7 @@ def Synthetic():
 			# 	exit()
 
 		for i in range(0,3):
-			result[i]=sum(result[i])/20.0
+			result[i]=sum(result[i])/turn
 
 		print '*'*10,result,'*'*10
 
@@ -784,6 +786,16 @@ def realworld_crime():
 	print mean_bias(bias)
 	print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
 
+	print '\nProcessing...\n'
+	array=[(all_answer[i],quality[i]) for i in range(0,len(quality))]
+	array=sorted(array,reverse=True,key=lambda array:array[1])
+	all_answer=[array[i][0] for i in range(0,int(len(quality)*1.0))]
+	for i in range(0,len(all_answer)):
+		for j in range(0,len(all_answer[i])):
+			for k in range(0,len(all_answer[i][j])):
+				if all_answer[i][j][k]!=None and bias[i][j]!=None:
+					all_answer[i][j][k]-=bias[i][j]
+
 	esti_truth,bias,sigma,quality=NTI(all_answer)
 	print 'NTI'
 	print 'Overall MAE :',MAE(esti_truth,truth)
@@ -794,7 +806,6 @@ def realworld_crime():
 	precision=TPr/(TPr+FPr)
 	recall=TPr/(TPr+FNr)
 	print precision,recall,2*precision*recall/(precision+recall)
-	print ''
 	print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
 
 if __name__=='__main__':
