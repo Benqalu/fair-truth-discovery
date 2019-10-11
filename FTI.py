@@ -6,7 +6,7 @@ from scipy.stats import pearsonr
 from scipy.stats import chi2
 from math import exp
 
-def confusion_matrix(inferred,truth):
+def confusion_matrix(inferred,truth,bound=0.5):
 	TP=0
 	TN=0
 	FP=0
@@ -15,13 +15,13 @@ def confusion_matrix(inferred,truth):
 	for i in range(0,len(inferred)):
 		for j in range(0,len(inferred[i])):
 			total+=1
-			if inferred[i][j]==1 and truth[i][j]==1:
+			if inferred[i][j]>bound and truth[i][j]>bound:
 				TP+=1
-			if inferred[i][j]==0 and truth[i][j]==0:
+			if inferred[i][j]<bound and truth[i][j]<bound:
 				TN+=1
-			if inferred[i][j]==1 and truth[i][j]==0:
+			if inferred[i][j]>bound and truth[i][j]<bound:
 				FP+=1
-			if inferred[i][j]==0 and truth[i][j]==1:
+			if inferred[i][j]<bound and truth[i][j]>bound:
 				FN+=1
 	TP/=total
 	TN/=total
@@ -323,7 +323,7 @@ def FTI(answer):
 
 	#Step 0: Give random initial numbers
 	truth=[[uniform(0,1) for k in range(0,r[j])] for j in range(0,m)]
-	bias=[[uniform(-0.01,0.01) for j in range(0,m)] for i in range(0,n)]
+	bias=[[uniform(-1.0,1.0) for j in range(0,m)] for i in range(0,n)]
 	sigma=[uniform(0,0.2) for i in range(0,n)]
 	quality=[1.0/n for i in range(0,n)]
 	last_truth=np.array([])
@@ -698,6 +698,7 @@ def realworld_crime():
 
 	all_answer=[]
 	label=[]
+	all_workerid=[]
 
 	fnames=os.listdir('realworld/crime')
 	for fname in fnames:
@@ -705,109 +706,169 @@ def realworld_crime():
 			answer=[]
 			f=open('realworld/crime/'+fname)
 			for row in f:
-				answer.append(eval(row))
-				all_answer.append(eval(row))
+				e=row.strip().split('\t')
+				answer.append(eval(e[1]))
+				all_answer.append(eval(e[1]))
+				all_workerid.append(e[0])
 				label.append(fname.split('.')[0][6:])
 			f.close()
 
-			if len(answer)<3:
-				print 'Ignore %s'%fname
-				continue
+			# if len(answer)<3:
+			# 	print 'Ignore %s'%fname
+			# 	continue
 
-			print fname
+			# print fname
 
-			esti_truth,bias,sigma,quality=FTI(answer)
-			print 'FTI'
-			print MAE(esti_truth,truth),
-			for i in range(0,len(esti_truth)):
-				for j in range(0,len(esti_truth[i])):
-					esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-			TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-			precision=TPr/(TPr+FPr)
-			recall=TPr/(TPr+FNr)
-			print precision,recall,2*precision*recall/(precision+recall)
-			print 'Mean bias'
-			print mean_bias(bias)
+			# esti_truth,bias,sigma,quality=FTI(answer)
+			# print 'FTI'
+			# print MAE(esti_truth,truth),
+			# for i in range(0,len(esti_truth)):
+			# 	for j in range(0,len(esti_truth[i])):
+			# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
+			# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+			# precision=TPr/(TPr+FPr)
+			# recall=TPr/(TPr+FNr)
+			# print precision,recall,2*precision*recall/(precision+recall)
+			# print 'Mean bias'
+			# print mean_bias(bias)
 
-			esti_truth,bias,sigma,quality=NTI(answer)
-			print 'NTI'
-			print MAE(esti_truth,truth),
-			for i in range(0,len(esti_truth)):
-				for j in range(0,len(esti_truth[i])):
-					esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-			TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-			precision=TPr/(TPr+FPr)
-			recall=TPr/(TPr+FNr)
-			print precision,recall,2*precision*recall/(precision+recall)
-			print ''
+			# esti_truth,bias,sigma,quality=NTI(answer)
+			# print 'NTI'
+			# print MAE(esti_truth,truth),
+			# for i in range(0,len(esti_truth)):
+			# 	for j in range(0,len(esti_truth[i])):
+			# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
+			# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+			# precision=TPr/(TPr+FPr)
+			# recall=TPr/(TPr+FNr)
+			# print precision,recall,2*precision*recall/(precision+recall)
+			# print ''
 
-	# avg_bias=None
-	# avg_quality=[]
-	# turn=333
-	# for i in range(0,turn):
-	# 	print i
-	# 	esti_truth,bias,sigma,quality=FTI(all_answer)
-	# 	if avg_bias==None:
-	# 		avg_bias=bias
-	# 	else:
-	# 		avg_bias=matrix_add(avg_bias,bias)
-	# 	if len(avg_quality)==0:
-	# 		avg_quality=np.array(quality)
-	# 	else:
-	# 		avg_quality+=np.array(quality)
+	delete_count=0
+	while True:
 
-	# avg_quality/=turn
+		print 'Delete :',delete_count
 
-	# for i in range(0,len(avg_bias)):
-	# 	for j in range(0,len(avg_bias[i])):
-	# 		if avg_bias[i][j]!=None:
-	# 			avg_bias[i][j]/=turn
+		avg_truth=None
+		avg_bias=None
+		avg_quality=[]
+		turn=1
+		for i in range(0,turn):
+			print i,'/',turn,'\r',
+			sys.stdout.flush()
+			esti_truth,bias,sigma,quality=FTI(all_answer)
+			if avg_bias==None:
+				avg_bias=bias
+			else:
+				avg_bias=matrix_add(avg_bias,bias)
+			if len(avg_quality)==0:
+				avg_quality=np.array(quality)
+			else:
+				avg_quality+=np.array(quality)
+			if avg_truth==None:
+				avg_truth=esti_truth
+			else:
+				avg_truth=matrix_add(avg_truth,esti_truth)
 
-	# f=open('crime_bias.txt','w')
-	# for i in range(0,len(avg_bias)):
-	# 	f.write(label[i]+'\t')
-	# 	for j in range(0,len(avg_bias[i])):
-	# 		f.write(str(avg_bias[i][j])+'\t')
-	# 	f.write(str(avg_quality[i]*len(avg_quality))+'\n')
-	# f.close()
+		avg_quality/=turn
 
-	print 'ALL'
-	esti_truth,bias,sigma,quality=FTI(all_answer)
-	print 'FTI'
-	print 'Overall MAE :',MAE(esti_truth,truth)
-	for i in range(0,len(esti_truth)):
-		for j in range(0,len(esti_truth[i])):
-			esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
-	TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-	precision=TPr/(TPr+FPr)
-	recall=TPr/(TPr+FNr)
-	print precision,recall,2*precision*recall/(precision+recall)
-	print 'Mean bias'
-	print mean_bias(bias)
-	print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
+		for i in range(0,len(avg_bias)):
+			for j in range(0,len(avg_bias[i])):
+				if avg_bias[i][j]!=None:
+					avg_bias[i][j]/=turn
+		for i in range(0,len(avg_truth)):
+			for j in range(0,len(avg_truth[i])):
+				if avg_truth[i][j]!=None:
+					avg_truth[i][j]/=turn
 
-	print '\nProcessing...\n'
-	array=[(all_answer[i],quality[i]) for i in range(0,len(quality))]
-	array=sorted(array,reverse=True,key=lambda array:array[1])
-	all_answer=[array[i][0] for i in range(0,int(len(quality)*1.0))]
-	for i in range(0,len(all_answer)):
-		for j in range(0,len(all_answer[i])):
-			for k in range(0,len(all_answer[i][j])):
-				if all_answer[i][j][k]!=None and bias[i][j]!=None:
-					all_answer[i][j][k]-=bias[i][j]
+		print 'MAE :',MAE(avg_truth,truth)
 
-	esti_truth,bias,sigma,quality=NTI(all_answer)
-	print 'NTI'
-	print 'Overall MAE :',MAE(esti_truth,truth)
-	for i in range(0,len(esti_truth)):
-		for j in range(0,len(esti_truth[i])):
-			esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
-	TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-	precision=TPr/(TPr+FPr)
-	recall=TPr/(TPr+FNr)
-	print precision,recall,2*precision*recall/(precision+recall)
-	print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
+		TPr,TNr,FPr,FNr=confusion_matrix(inferred=avg_truth,truth=truth)
+		print TPr,TNr,FPr,FNr
+		print 'Accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr),'\t','Precision :',TPr/(TPr+FPr),'\t','Recall :',TPr/(TPr+FNr)
+
+		ii=-1
+		jj=-1
+		max_bias=-100000
+		original_bias=None
+		for i in range(0,len(avg_bias)):
+			for j in range(0,len(avg_bias[i])):
+				if avg_bias[i][j]!=None and abs(avg_bias[i][j])>max_bias:
+					max_bias=abs(avg_bias[i][j])
+					original_bias=avg_bias[i][j]
+					ii=i
+					jj=j
+
+		for k in range(0,len(all_answer[ii][jj])):
+			all_answer[ii][jj][k]=None
+			continue
+			if all_answer[ii][jj][k]!=None:
+				if original_bias>0 and all_answer[ii][jj][k]>0.5:
+					all_answer[ii][jj][k]==None
+				if original_bias<0 and all_answer[ii][jj][k]<0.5:
+					all_answer[ii][jj][k]==None
+
+		# for i in range(0,len(all_answer)):
+		# 	for j in range(0,len(all_answer[i])):
+		# 		if avg_bias[i][j]==None:
+		# 			continue
+		# 		for k in range(0,len(all_answer[i][j])):
+		# 			if all_answer[i][j][k]!=None:
+		# 				if all_answer[i][j][k]>0.5 and all_answer[i][j][k]-avg_bias[i][j]<0.5:
+		# 					all_answer[i][j][k]=1-all_answer[i][j][k]
+		# 				if all_answer[i][j][k]<0.5 and all_answer[i][j][k]-avg_bias[i][j]>0.5:
+		# 					all_answer[i][j][k]=1-all_answer[i][j][k]
+
+		delete_count+=1
+
+
+
+	f=open('crime_bias.txt','w')
+	for i in range(0,len(avg_bias)):
+		f.write(all_workerid[i]+'\t')
+		f.write(label[i]+'\t')
+		for j in range(0,len(avg_bias[i])):
+			f.write(str(avg_bias[i][j])+'\t')
+		f.write(str(avg_quality[i]*len(avg_quality))+'\n')
+	f.close()
+
+	# print 'ALL'
+	# esti_truth,bias,sigma,quality=FTI(all_answer)
+	# print 'FTI'
+	# print 'Overall MAE :',MAE(esti_truth,truth)
+	# for i in range(0,len(esti_truth)):
+	# 	for j in range(0,len(esti_truth[i])):
+	# 		esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
+	# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+	# precision=TPr/(TPr+FPr)
+	# recall=TPr/(TPr+FNr)
+	# print precision,recall,2*precision*recall/(precision+recall)
+	# print 'Mean bias'
+	# print mean_bias(bias)
+	# print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
+
+	# print '\nProcessing...\n'
+	# array=[(all_answer[i],quality[i]) for i in range(0,len(quality))]
+	# array=sorted(array,reverse=True,key=lambda array:array[1])
+	# all_answer=[array[i][0] for i in range(0,int(len(quality)*1.0))]
+	# for i in range(0,len(all_answer)):
+	# 	for j in range(0,len(all_answer[i])):
+	# 		for k in range(0,len(all_answer[i][j])):
+	# 			if all_answer[i][j][k]!=None and bias[i][j]!=None:
+	# 				all_answer[i][j][k]-=bias[i][j]
+
+	# esti_truth,bias,sigma,quality=NTI(all_answer)
+	# print 'NTI'
+	# print 'Overall MAE :',MAE(esti_truth,truth)
+	# for i in range(0,len(esti_truth)):
+	# 	for j in range(0,len(esti_truth[i])):
+	# 		esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
+	# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
+	# precision=TPr/(TPr+FPr)
+	# recall=TPr/(TPr+FNr)
+	# print precision,recall,2*precision*recall/(precision+recall)
+	# print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
 
 if __name__=='__main__':
-	# realworld_crime()
-	Synthetic()
+	realworld_crime()
+	# Synthetic()

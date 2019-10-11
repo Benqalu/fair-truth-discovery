@@ -56,7 +56,7 @@ for item in demographic:
 	print fname
 	for wid in demographic[item]:
 		f=open(fname,'a')
-		f.write(str(answer[wid])+'\n')
+		f.write(str(wid)+'\t'+str(answer[wid])+'\n')
 		f.close()
 
 
