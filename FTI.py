@@ -875,7 +875,7 @@ def realworld_crime():
 def stastic_debiasing():
 
 	stastic_bias={}
-	f=open('./realworld/crime/ibias.csv')
+	f=open('./realworld/crime/ibiasv.csv')
 	for row in f:
 		row=row.strip()
 		if row[-1]==',':
@@ -884,7 +884,7 @@ def stastic_debiasing():
 		for i in range(1,len(row)):
 			row[i]=eval(row[i])
 			if row[i]!=None:
-				row[i]=float(row[i])-0.5
+				row[i]=float(row[i])
 		stastic_bias[row[0]]=row[1:]
 	f.close()
 
@@ -898,22 +898,13 @@ def stastic_debiasing():
 	for fname in fnames:
 		if 'crime' in fname:
 			answer=[]
+			print(fname)
 			f=open('realworld/crime/'+fname)
 			for row in f:
 				e=row.strip().split('\t')
 				all_answer.append(eval(e[1]))
 				all_workerid.append(e[0])
 			f.close()
-
-	for i in range(0,len(all_answer)):
-		for j in range(0,len(all_answer[i])):
-			all_none=all([all_answer[i][j][k]==None for k in range(0,len(all_answer[i][j]))])
-			for k in range(0,len(all_answer[i][j])):
-				if all_none and stastic_bias[all_workerid[i]][j]!=None:
-					print('Error')
-				if all_answer[i][j][k]==None or stastic_bias[all_workerid[i]][j]==None:
-					continue
-				all_answer[i][j][k]+=stastic_bias[all_workerid[i]][j]
 
 	z={}
 	for i in range(0,len(all_workerid)):
@@ -923,34 +914,37 @@ def stastic_debiasing():
 	for item in stastic_bias:
 		for j in range(0,len(stastic_bias[item])):
 			if stastic_bias[item][j]!=None:
-				bias_sequence.append((item,j,stastic_bias[item][j]))
+				bias_sequence.append((item,j,abs(stastic_bias[item][j]),stastic_bias[item][j]))
 	bias_sequence=sorted(bias_sequence,reverse=True,key=lambda bias_sequence:bias_sequence[2])
 
-	print('Flip')
 	i=-1
 	while i<len(bias_sequence)-1:
 		i+=1
 		print(i,len(bias_sequence))
 		wid=bias_sequence[i][0]
 		cid=bias_sequence[i][1]
+		bval=bias_sequence[i][3]
+
+		print(bias_sequence[i],)
 
 		if wid not in z:
 			continue
 
 		for k in range(0,len(z[wid][cid])):
-			if z[wid][cid][k]!=None:
-				# z[wid][cid][k]=1-z[wid][cid][k]
-				z[wid][cid][k]=None
+			# if z[wid][cid][k]!=None:	#Delete
+			# 	z[wid][cid][k]=None
+			if z[wid][cid][k]!=None:	#Flip
+				if bval*(z[wid][cid][k]-0.5)>0:
+					z[wid][cid][k]=1-z[wid][cid][k]
 
 		answer=[]
 		for item in z:
 			answer.append(z[item])
 
-		esti_truth,bias,sigma,quality=FTI(answer)
-
+		esti_truth,bias,sigma,quality=NTI(answer)
 		TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
 		# print(TPr,TNr,FPr,FNr)
-		print('Accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr),'\t','Precision :',TPr/(TPr+FPr),'\t','Recall :',TPr/(TPr+FNr))
+		print('Accuracy : %.4f'%((TPr+TNr)/(TPr+TNr+FPr+FNr)))#,'\t','Precision :',TPr/(TPr+FPr),'\t','Recall :',TPr/(TPr+FNr))
 
 
 
