@@ -5,6 +5,7 @@ import sys,itertools,os
 from scipy.stats import pearsonr
 from scipy.stats import chi2
 from math import exp
+from copy import deepcopy
 
 def confusion_matrix(inferred,truth,bound=0.5):
 	TP=0
@@ -170,15 +171,15 @@ def clipped(x,a,b):
 		return b
 	return x
 
-def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right=0.00):
+def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,worker_portion=[0.1,0.9],skewness_right=0.00):
 
-	object_score=uniform(0,1,object_n)
+	object_score=uniform(0.1,0.9,object_n)
 
 	ranking=np.flip(np.array(object_score).argsort())
 
 	objects=[[] for i in range(0,category_n)]
 
-	portion=uniform(0.1,0.2,worker_n)
+	portion=uniform(worker_portion[0],worker_portion[1],worker_n)
 
 	task_list=[]
 	for i in range(0,object_n):
@@ -204,14 +205,14 @@ def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right
 	for i in range(0,worker_n):
 		bias.append([])
 		for j in range(0,category_n):
-			# bias[i].append(0.1)
-			if uniform(0,1)<0.5:
-				bias[i].append(poisson(10)*0.01)
-			else:
-				bias[i].append(-poisson(10)*0.01)
+			bias[i].append(uniform(-0.3,0.3)+skewness_right)
+			# if uniform(0,1)<0.5:
+			# 	bias[i].append(uniform(0.1,0.3)+skewness_right)
+			# else:
+			# 	bias[i].append(-uniform(0.1,0.3)+skewness_right)
 	sigma=[]
 	for i in range(0,worker_n):
-		sigma.append(uniform(0.01,0.2))
+		sigma.append(uniform(0.01,0.5))
 
 	truth=[]
 	for i in range(0,len(objects)):
@@ -236,7 +237,6 @@ def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right
 				answer[i][j].append(None)
 
 	for j in range(0,category_n):
-		answer[i].append([])
 		for k in range(0,len(truth[j])):
 				l=list(range(0,worker_n))
 				shuffle(l)
@@ -246,21 +246,21 @@ def data_generator(object_n,worker_n,category_n,compare_ratio=1.0,skewness_right
 
 	return answer,truth,objects,ranking,bias,sigma
 
-def NTI(answer):
+def NTI(answer,VLDB=True):
 
 	n=len(answer)
 	m=len(answer[0])
 	r=[len(answer[0][j]) for j in range(0,m)]
 
-	truth=[[uniform(0.49,0.51) for k in range(0,r[j])] for j in range(0,m)]
-	sigma=[uniform(0,0.1) for i in range(0,n)]
+	truth=[[uniform(0,1) for k in range(0,r[j])] for j in range(0,m)]
+	sigma=[uniform(0,1) for i in range(0,n)]
 	quality=[1.0/n for i in range(0,n)]
 
 	last_truth=np.array([])
 
 	while True:
 
-		if last_truth.size!=0:
+		if len(last_truth)!=0:
 			maxdiff=0.0
 			for j in range(0,m):
 				for k in range(0,r[j]):
@@ -269,7 +269,8 @@ def NTI(answer):
 				break
 			else:
 				pass
-		last_truth=np.copy(truth)
+
+		last_truth=deepcopy(truth)
 
 		for j in range(0,m):
 			for k in range(0,r[j]):
@@ -297,53 +298,65 @@ def NTI(answer):
 						acc_n+=1
 			sigma[i]=np.sqrt(sigma[i]/acc_n)
 
-		# quality=np.array(sigma)**2+1E-10
-		# quality/=quality.sum()
+		if not VLDB:
 
-		sum_quality=1E-10
-		for i in range(0,n):
-			Ns=0
-			up=1E-10
-			down=1E-10
-			for j in range(0,m):
-				for k in range(0,r[j]):
-					if answer[i][j][k]!=None:
-						Ns+=1
-						down+=(answer[i][j][k]-truth[j][k])**2
-			up+=chi2.ppf(q=0.95,df=Ns)
-			quality[i]=up/down
+			sum_q=0.0
+			for i in range(0,len(quality)):
+				quality[i]=1.0/sigma[i]**2
+				sum_q+=quality[i]
+			for i in range(0,len(quality)):
+				quality[i]=quality[i]/sum_q+1E-10
+			
+		else:
 
-		for i in range(0,n):
-			quality[i]/=sum(quality)
+			sum_quality=0.0
+			for i in range(0,n):
+				Ns=0
+				up=1E-10
+				down=1E-10
+				for j in range(0,m):
+					for k in range(0,r[j]):
+						if answer[i][j][k]!=None:
+							Ns+=1
+							down+=(answer[i][j][k]-truth[j][k])**2
+				up+=chi2.ppf(q=0.95,df=Ns)
+				quality[i]=up/down+1E-10
 
-	return truth,None,None,quality
+			quality_sum=sum(quality)
+			for i in range(0,n):
+				quality[i]/=quality_sum
 
-def FTI(answer):
+	return truth,None,sigma,quality
+
+def FTI(answer,VLDB=False):
 
 	n=len(answer)
 	m=len(answer[0])
 	r=[len(answer[0][j]) for j in range(0,m)]
 
 	#Step 0: Give random initial numbers
-	truth=[[uniform(0,1) for k in range(0,r[j])] for j in range(0,m)]
-	bias=[[uniform(-1.0,1.0) for j in range(0,m)] for i in range(0,n)]
-	sigma=[uniform(0,0.2) for i in range(0,n)]
+	truth=[[0.0 for k in range(0,r[j])] for j in range(0,m)]
+	bias=[[uniform(-0.1,0.1) for j in range(0,m)] for i in range(0,n)]
+	sigma=[0.0 for i in range(0,n)]
 	quality=[1.0/n for i in range(0,n)]
 	last_truth=np.array([])
 
 	while True:
 
-		if last_truth.size!=0:
+		if len(last_truth)!=0:
 			maxdiff=-1
 			for j in range(0,m):
 				for k in range(0,r[j]):
 					if last_truth[j][k]!=None and truth[j][k]!=None: 
 						maxdiff=max(maxdiff,abs(last_truth[j][k]-truth[j][k]))
-			if maxdiff<1E-10 and maxdiff>=0:
+			print(maxdiff)
+			if maxdiff<1E-5 and maxdiff>=0:
 				break
 			else:
 				pass
-		last_truth=np.copy(truth)
+
+		last_truth=deepcopy(truth)
+
 		#Step 1: Estimate Truth
 		for j in range(0,m):
 			for k in range(0,r[j]):
@@ -372,6 +385,8 @@ def FTI(answer):
 				else:
 					bias[i][j]/=acc_n
 
+		# print(bias)
+
 		for i in range(0,n):
 			sigma[i]=0.0
 			acc_n=0
@@ -382,28 +397,34 @@ def FTI(answer):
 						acc_n+=1
 			sigma[i]=np.sqrt(sigma[i]/acc_n)
 
-		#Step 3: Calculate worker quality
-		#Option 1
-		# quality=np.array(sigma)**2
-		# quality/=quality.sum()
+		# Step 3: Calculate worker quality
+		if not VLDB:
 
-		#Option 2
-		sum_quality=1E-10
-		for i in range(0,n):
-			Ns=0
-			up=1E-10
-			down=1E-10
-			for j in range(0,m):
-				for k in range(0,r[j]):
-					if answer[i][j][k]!=None:
-						Ns+=1
-						down+=(answer[i][j][k]-truth[j][k]-bias[i][j])**2
-			up+=chi2.ppf(q=0.95,df=Ns)
-			quality[i]=up/down
+			sum_q=0.0
+			for i in range(0,len(quality)):
+				quality[i]=1.0/sigma[i]**2
+				sum_q+=quality[i]
+			for i in range(0,len(quality)):
+				quality[i]=quality[i]/sum_q+1E-10
+			
+		else:
 
-		sum_quality=sum(quality)
-		for i in range(0,n):
-			quality[i]/=sum_quality
+			sum_quality=0.0
+			for i in range(0,n):
+				Ns=0
+				up=1E-10
+				down=1E-10
+				for j in range(0,m):
+					for k in range(0,r[j]):
+						if answer[i][j][k]!=None:
+							Ns+=1
+							down+=(answer[i][j][k]-truth[j][k]-bias[i][j])**2
+				up+=chi2.ppf(q=0.95,df=Ns)
+				quality[i]=up/down+1E-10
+
+			quality_sum=sum(quality)
+			for i in range(0,n):
+				quality[i]/=quality_sum
 
 	return truth,bias,sigma,quality
 
@@ -453,7 +474,6 @@ def infer_ranking(truth,objects):
 
 	return sorted(ranking(p).tolist(),reverse=True),np.flip(ranking(p).argsort())
 
-
 def pearson(A,B):
 	AA=[]
 	BB=[]
@@ -463,129 +483,6 @@ def pearson(A,B):
 		for item in B:
 			BB+=item
 	return pearsonr(AA,BB)[0]
-
-def FTI_main(answer=None,objects=None,turn=1):
-
-	total_bias=None
-	total_truth=None
-
-	for _ in range(0,turn):
-
-		if objects==None:
-			worker_id,answer,flipped=data_reader('results.csv')
-			profile=user_profile_reader('demo.csv')
-
-		truth,bias,sigma,quality=FTI(answer)
-
-		if objects==None:
-			for j in range(0,len(truth)):
-				for k in range(0,len(truth[j])):
-					if (j,k) in flipped:
-						truth[j][k]=1-truth[j][k]
-
-		if total_bias==None:
-			total_bias=bias
-		else:
-			total_bias=matrix_add(total_bias,bias)
-
-		if total_truth==None:
-			total_truth=truth
-		else:
-			total_truth=matrix_add(total_truth,truth)
-
-		print(_+1,'/',turn,'\r', end=' ')
-		sys.stdout.flush()
-
-	f=open('result/truth_FTI.txt','w')
-	for j in range(0,len(total_truth)):
-		for k in range(0,len(total_truth[j])):
-			total_truth[j][k]/=turn
-			f.write(str(total_truth[j][k]/turn)+'\t')
-		f.write('\n')
-	f.close()
-
-	if objects==None:
-		objects=get_objects('task.txt')
-	score,ranking=infer_ranking(truth=truth,objects=objects)
-	
-	return score,ranking,total_truth
-
-	exit()
-
-	bias=total_bias
-	for i in range(0,len(bias)):
-		for j in range(0,len(bias[i])):
-			if bias[i][j]!=None:
-				bias[i][j]/=turn
-
-	f=open('crowdsource_bias.txt','w')
-	for i in range(0,len(bias)):
-		f.write(worker_id[i]+'\t')
-		for j in range(0,len(bias[i])):
-			if count_usable(answer[i][j])>=3:
-				f.write(str(bias[i][j])+'\t')
-			else:
-				f.write(str(None)+'\t')
-				bias[i][j]=None
-		f.write('\n')
-	f.close()
-
-	dict_bias={}
-	for i in range(0,len(worker_id)):
-		item=worker_id[i]
-		dict_bias[item]=bias[i]
-
-	for race in profile:
-		for gender in profile[race]:
-			f=open('./result/bias_%s_%s.txt'%(race,gender),'w')
-			for wid in profile[race][gender]:
-				f.write(wid+'\t')
-				for item in dict_bias[wid]:
-					f.write(str(item)+'\t')
-				f.write('\n')
-			f.close()
-
-def NTI_main(answer=None,objects=None,turn=1):
-
-	total_truth=None
-
-	for _ in range(0,turn):
-
-		# worker_id,answer=data_reader('noceo.csv')
-
-		if objects==None:
-			worker_id,answer,flipped=data_reader('results.csv')
-			profile=user_profile_reader('demo.csv')
-
-		truth,bias,sigma,quality=NTI(answer)
-
-		if objects==None:
-			for j in range(0,len(truth)):
-				for k in range(0,len(truth[j])):
-					if (j,k) in flipped:
-						truth[j][k]=1-truth[j][k]
-
-		if total_truth==None:
-			total_truth=truth
-		else:
-			total_truth=matrix_add(total_truth,truth)
-
-		print(_+1,'/',turn,'\r', end=' ')
-		sys.stdout.flush()
-
-	f=open('result/truth_NTI.txt','w')
-	for j in range(0,len(total_truth)):
-		for k in range(0,len(total_truth[j])):
-			total_truth[j][k]/=turn
-			f.write(str(total_truth[j][k]/turn)+'\t')
-		f.write('\n')
-	f.close()
-
-	if objects==None:
-		objects=get_objects('task.txt')
-	score,ranking=infer_ranking(truth=truth,objects=objects)
-	
-	return score,ranking,total_truth
 
 def MAE(A,B):
 	res=0.0
@@ -600,11 +497,11 @@ def MAE(A,B):
 
 def Synthetic():
 
-	object_n=20
+	object_n=30
 	worker_n=100
 	category_n=5
 	compare_ratio=1.0
-	turn=100
+	turn=20
 
 	print('Number of objects:',object_n)
 	print('Number of workers:',worker_n)
@@ -617,48 +514,52 @@ def Synthetic():
 		print('compare_ratio =',compare_ratio)
 
 		result=[[],[],[]]
+		error=[[],[],[]]
 
 		for t in range(0,turn):
 
-			print('')
-			print('#'*30)
-			print('')
+			# print('')
+			# print('#'*30)
+			# print('')
 
-			print('turn =',t)
-
-			print('Compare ratio',compare_ratio)
+			# print('Compare ratio',compare_ratio)
 
 			answer,truth,objects,true_ranking,bias,sigma=data_generator(object_n,worker_n,category_n,compare_ratio)
-			print('Data generated.\n')
+			# print('Data generated.\n')
 
-			print('True ranking:')
-			print(true_ranking)
-			print('')
+			# print('True ranking:')
+			# print(true_ranking)
+			# print('')
 
 			score,inferred_ranking=infer_ranking(truth=truth,objects=objects)
-			print('Inferred ranking:')
-			tau0=tau_distance(true_ranking,inferred_ranking)
-			print(inferred_ranking,tau0)
-			print('')
-			result[0].append(tau0)
+			# print('Inferred ranking:')
+			tau=tau_distance(true_ranking,inferred_ranking)
+			# print(inferred_ranking,tau0)
+			# print('')
+			result[0].append(tau)
+			error[0].append(0.0)
 
-			print('Running normal truth inference...')
-			score,NTI_ranking,NTI_truth=NTI_main(answer=answer,objects=objects,turn=1)
-			tau1=tau_distance(true_ranking,NTI_ranking)
-			print(NTI_ranking,tau1)
+			# print('Running normal truth inference...')
+			score,NTI_ranking,NTI_truth=NTI_main(answer=answer,objects=objects,turn=3)
+			NTI_tau=tau_distance(true_ranking,NTI_ranking)
+			NTI_MAE=MAE(NTI_truth,truth)
+			# print(NTI_ranking,tau1)
 			#print 'MAE between truth:',MAE(truth,NTI_truth)
-			print('')
-			result[1].append(tau1)
+			# print('')
+			result[1].append(NTI_tau)
+			error[1].append(NTI_MAE)
 
-			print('Running fair truth inference...')
-			score,FTI_ranking,FTI_truth=FTI_main(answer=answer,objects=objects,turn=1)
-			tau2=tau_distance(true_ranking,FTI_ranking)
-			print(FTI_ranking,tau2)
+			# print('Running fair truth inference...')
+			score,FTI_ranking,FTI_truth=FTI_main(answer=answer,objects=objects,turn=3)
+			FTI_tau=tau_distance(true_ranking,FTI_ranking)
+			FTI_MAE=MAE(FTI_truth,truth)
+			# print(FTI_ranking,tau2)
 			#print 'MAE between truth:',MAE(truth,FTI_truth)
-			print('')
-			result[2].append(tau2)
+			# print('')
+			result[2].append(FTI_tau)
+			error[2].append(FTI_MAE)
 
-			print([sum(result[0])/(t+1),sum(result[1])/(t+1),sum(result[2])/(t+1)])
+			print(t,[sum(result[0])/(t+1),sum(result[1])/(t+1),sum(result[2])/(t+1)])
 
 			# if tau1-tau2>0.15:
 			# 	print truth
@@ -670,11 +571,12 @@ def Synthetic():
 
 		for i in range(0,3):
 			result[i]=sum(result[i])/turn
+			error[i]=sum(error[i])/turn
 
 		print('*'*10,result,'*'*10)
 
 		f=open('result/synthetic_n%d.txt'%worker_n,'a')
-		f.write(str(compare_ratio)+'\t'+str(result)+'\n')
+		f.write(str(compare_ratio)+'\t'+str(result)+'\t'+str(error)+'\n')
 		f.close()
 
 def mean_bias(bias):
@@ -693,184 +595,147 @@ def mean_bias(bias):
 			aggregated_bias[i]/=aggregated_count[i]
 	return aggregated_bias
 
+def measure_fair_acc(esti_truth,truth):
+
+	information={}
+	information['male']=[1,2,4,5,7]
+	information['female']=[0,3,6]
+
+	ret={}
+
+	#P(acc|male)
+	TN=0
+	TP=0
+	FN=0
+	FP=0
+	up=0
+	down=0
+	positive=0
+	negative=0
+	criminal=0
+	male_n=0
+	for j in range(0,len(esti_truth)):
+		for k in range(0,len(esti_truth[j])):
+			if truth[j][k]!=None:
+				if j in information['male']:
+					if truth[j][k]==1:
+						criminal+=1
+					male_n+=1
+			if j in information['male'] and esti_truth[j][k]!=None:
+				if round(esti_truth[j][k])==1:
+					positive+=1
+				else:
+					negative+=1
+				if truth[j][k]==1 and round(esti_truth[j][k])==1:
+					TP+=1
+				if truth[j][k]==1 and round(esti_truth[j][k])==0:
+					FP+=1
+				if truth[j][k]==0 and round(esti_truth[j][k])==1:
+					FN+=1
+				if truth[j][k]==0 and round(esti_truth[j][k])==0:
+					TN+=1
+				down+=1
+				up+=1-abs(esti_truth[j][k]-truth[j][k])
+	# ret['male']=1.0*(positive)/(FP+FN+TP+TN)
+	ret['male']=up/down
+	print('Male criminal:',criminal,male_n)
+
+
+	#P(acc|female)
+	TN=0
+	TP=0
+	FN=0
+	FP=0
+	up=0
+	down=0
+	positive=0
+	negative=0
+	criminal=0
+	female_n=0
+	for j in range(0,len(esti_truth)):
+		for k in range(0,len(esti_truth[j])):
+			if truth[j][k]!=None:
+				if j in information['female']:
+					if truth[j][k]==1:
+						criminal+=1
+					female_n+=1
+			if j in information['female'] and esti_truth[j][k]!=None:
+				if round(esti_truth[j][k])==1:
+					positive+=1
+				else:
+					negative+=1
+				if truth[j][k]==1 and round(esti_truth[j][k])==1:
+					TP+=1
+				if truth[j][k]==1 and round(esti_truth[j][k])==0:
+					FP+=1
+				if truth[j][k]==0 and round(esti_truth[j][k])==1:
+					FN+=1
+				if truth[j][k]==0 and round(esti_truth[j][k])==0:
+					TN+=1
+				down+=1
+				up+=1-abs(esti_truth[j][k]-truth[j][k])
+	# ret['female']=1.0*(positive)/(FP+FN+TP+TN)
+	ret['female']=up/down
+	print('Female criminal:',criminal,female_n)
+
+	count=0
+	correct=0
+	for j in range(0,len(esti_truth)):
+		for k in range(0,len(esti_truth[j])):
+			if esti_truth[j][k]!=None and round(esti_truth[j][k])==truth[j][k]:
+				correct+=1
+			count+=1
+
+	print(correct,count)
+
+
+	return ret['male'],ret['female'],ret['male']-ret['female'],1.0*correct/count
+
+
 def realworld_crime():
 
 	f=open('realworld/crime/truth.txt')
 	truth=eval(f.readline())
 	f.close()
 
-	all_answer=[]
+	answer=[]
 	label=[]
-	all_workerid=[]
+	workerid=[]
 
 	fnames=os.listdir('realworld/crime')
 	for fname in fnames:
 		if 'crime' in fname:
-			answer=[]
+			this_answer=[]
 			f=open('realworld/crime/'+fname)
 			for row in f:
 				e=row.strip().split('\t')
+				this_answer.append(eval(e[1]))
 				answer.append(eval(e[1]))
-				all_answer.append(eval(e[1]))
-				all_workerid.append(e[0])
+				workerid.append(e[0])
 				label.append(fname.split('.')[0][6:])
 			f.close()
 
-			# if len(answer)<3:
-			# 	print 'Ignore %s'%fname
-			# 	continue
+	FTI_truth,FTI_bias,FTI_sigma,FTI_quality=FTI(answer,VLDB=True)
 
-			# print fname
+	votes=[]
+	for j in range(0,len(truth)):
+		votes.append([])
+		for k in range(0,len(truth[j])):
+			votes[-1].append([0,0])
+			for i in range(0,len(answer)):
+				if answer[i][j][k]!=None:
+					votes[j][k][int(round(answer[i][j][k]))]+=1
 
-			# esti_truth,bias,sigma,quality=FTI(answer)
-			# print 'FTI'
-			# print MAE(esti_truth,truth),
-			# for i in range(0,len(esti_truth)):
-			# 	for j in range(0,len(esti_truth[i])):
-			# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-			# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-			# precision=TPr/(TPr+FPr)
-			# recall=TPr/(TPr+FNr)
-			# print precision,recall,2*precision*recall/(precision+recall)
-			# print 'Mean bias'
-			# print mean_bias(bias)
+	for j in range(0,len(truth)):
+		for k in range(0,len(truth[j])):
+			if truth[j][k]!=None:
+				biases=[]
+				for i in range(0,len(FTI_bias)):
+					if answer[i][j][k]!=None:
+						biases.append((answer[i][j][k],FTI_bias[i][j]))
+				if truth[j][k]!=int(round(FTI_truth[j][k])):
+					print((j,k),votes[j][k],truth[j][k],biases)
 
-			# esti_truth,bias,sigma,quality=NTI(answer)
-			# print 'NTI'
-			# print MAE(esti_truth,truth),
-			# for i in range(0,len(esti_truth)):
-			# 	for j in range(0,len(esti_truth[i])):
-			# 		esti_truth[i][j]=int(esti_truth[i][j]>0.5)
-			# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-			# precision=TPr/(TPr+FPr)
-			# recall=TPr/(TPr+FNr)
-			# print precision,recall,2*precision*recall/(precision+recall)
-			# print ''
-
-	delete_count=0
-	while True:
-
-		print('Delete :',delete_count)
-
-		avg_truth=None
-		avg_bias=None
-		avg_quality=[]
-		turn=1
-		for i in range(0,turn):
-			print(i,'/',turn,'\r', end=' ')
-			sys.stdout.flush()
-			esti_truth,bias,sigma,quality=FTI(all_answer)
-			if avg_bias==None:
-				avg_bias=bias
-			else:
-				avg_bias=matrix_add(avg_bias,bias)
-			if len(avg_quality)==0:
-				avg_quality=np.array(quality)
-			else:
-				avg_quality+=np.array(quality)
-			if avg_truth==None:
-				avg_truth=esti_truth
-			else:
-				avg_truth=matrix_add(avg_truth,esti_truth)
-
-		avg_quality/=turn
-
-		for i in range(0,len(avg_bias)):
-			for j in range(0,len(avg_bias[i])):
-				if avg_bias[i][j]!=None:
-					avg_bias[i][j]/=turn
-		for i in range(0,len(avg_truth)):
-			for j in range(0,len(avg_truth[i])):
-				if avg_truth[i][j]!=None:
-					avg_truth[i][j]/=turn
-
-		print('MAE :',MAE(avg_truth,truth))
-
-		TPr,TNr,FPr,FNr=confusion_matrix(inferred=avg_truth,truth=truth)
-		print(TPr,TNr,FPr,FNr)
-		print('Accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr),'\t','Precision :',TPr/(TPr+FPr),'\t','Recall :',TPr/(TPr+FNr))
-
-		ii=-1
-		jj=-1
-		max_bias=-100000
-		original_bias=None
-		for i in range(0,len(avg_bias)):
-			for j in range(0,len(avg_bias[i])):
-				if avg_bias[i][j]!=None and abs(avg_bias[i][j])>max_bias:
-					max_bias=abs(avg_bias[i][j])
-					original_bias=avg_bias[i][j]
-					ii=i
-					jj=j
-
-		for k in range(0,len(all_answer[ii][jj])):
-			all_answer[ii][jj][k]=None
-			continue
-			if all_answer[ii][jj][k]!=None:
-				if original_bias>0 and all_answer[ii][jj][k]>0.5:
-					all_answer[ii][jj][k]==None
-				if original_bias<0 and all_answer[ii][jj][k]<0.5:
-					all_answer[ii][jj][k]==None
-
-		# for i in range(0,len(all_answer)):
-		# 	for j in range(0,len(all_answer[i])):
-		# 		if avg_bias[i][j]==None:
-		# 			continue
-		# 		for k in range(0,len(all_answer[i][j])):
-		# 			if all_answer[i][j][k]!=None:
-		# 				if all_answer[i][j][k]>0.5 and all_answer[i][j][k]-avg_bias[i][j]<0.5:
-		# 					all_answer[i][j][k]=1-all_answer[i][j][k]
-		# 				if all_answer[i][j][k]<0.5 and all_answer[i][j][k]-avg_bias[i][j]>0.5:
-		# 					all_answer[i][j][k]=1-all_answer[i][j][k]
-
-		delete_count+=1
-
-
-
-	f=open('crime_bias.txt','w')
-	for i in range(0,len(avg_bias)):
-		f.write(all_workerid[i]+'\t')
-		f.write(label[i]+'\t')
-		for j in range(0,len(avg_bias[i])):
-			f.write(str(avg_bias[i][j])+'\t')
-		f.write(str(avg_quality[i]*len(avg_quality))+'\n')
-	f.close()
-
-	# print 'ALL'
-	# esti_truth,bias,sigma,quality=FTI(all_answer)
-	# print 'FTI'
-	# print 'Overall MAE :',MAE(esti_truth,truth)
-	# for i in range(0,len(esti_truth)):
-	# 	for j in range(0,len(esti_truth[i])):
-	# 		esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
-	# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-	# precision=TPr/(TPr+FPr)
-	# recall=TPr/(TPr+FNr)
-	# print precision,recall,2*precision*recall/(precision+recall)
-	# print 'Mean bias'
-	# print mean_bias(bias)
-	# print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
-
-	# print '\nProcessing...\n'
-	# array=[(all_answer[i],quality[i]) for i in range(0,len(quality))]
-	# array=sorted(array,reverse=True,key=lambda array:array[1])
-	# all_answer=[array[i][0] for i in range(0,int(len(quality)*1.0))]
-	# for i in range(0,len(all_answer)):
-	# 	for j in range(0,len(all_answer[i])):
-	# 		for k in range(0,len(all_answer[i][j])):
-	# 			if all_answer[i][j][k]!=None and bias[i][j]!=None:
-	# 				all_answer[i][j][k]-=bias[i][j]
-
-	# esti_truth,bias,sigma,quality=NTI(all_answer)
-	# print 'NTI'
-	# print 'Overall MAE :',MAE(esti_truth,truth)
-	# for i in range(0,len(esti_truth)):
-	# 	for j in range(0,len(esti_truth[i])):
-	# 		esti_truth[i][j]=int(esti_truth[i][j]>=0.5)
-	# TPr,TNr,FPr,FNr=confusion_matrix(inferred=esti_truth,truth=truth)
-	# precision=TPr/(TPr+FPr)
-	# recall=TPr/(TPr+FNr)
-	# print precision,recall,2*precision*recall/(precision+recall)
-	# print 'Overall accuracy :',(TPr+TNr)/(TPr+TNr+FPr+FNr)
 
 def stastic_debiasing():
 
@@ -946,9 +811,22 @@ def stastic_debiasing():
 		# print(TPr,TNr,FPr,FNr)
 		print('Accuracy : %.4f'%((TPr+TNr)/(TPr+TNr+FPr+FNr)))#,'\t','Precision :',TPr/(TPr+FPr),'\t','Recall :',TPr/(TPr+FNr))
 
-
-
 if __name__=='__main__':
-	# realworld_crime()
+	realworld_crime()
 	# Synthetic()
-	stastic_debiasing()
+	# stastic_debiasing()
+
+	# answer,truth,objects,true_ranking,bias,sigma=data_generator(object_n=6,worker_n=4,category_n=2,worker_portion=[1.0,1.0],compare_ratio=1.0)
+	
+	# print('Truth',truth)
+	# print('Stddev',sigma)
+	# print('Bias',bias,'\n')
+
+	# fti_truth,fti_bias,fti_sigma,fti_quality=FTI(answer)
+	
+	# print(MAE(fti_truth,truth),'\n')
+
+	# nti_truth,_,nti_sigma,nti_quality=NTI(answer,VLDB=True)
+
+	# print(MAE(nti_truth,truth),'\n')
+
