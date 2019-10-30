@@ -79,58 +79,53 @@ def realworld_crime():
 				
 			f.close()
 
-	n=len(answer)
-	m=len(answer[0])
-	fraction=0.1
-	selected=[]
-	for i in range(0,int(n*fraction)):
-		x=int(uniform(0,n))
-		if x not in selected:
-			selected.append(x)
-	selected.sort()
-	print(selected,len(selected))
-	selected_answer=[]
-	for item in selected:
-		selected_answer.append(answer[item])
+	# n=len(answer)
+	# m=len(answer[0])
+	# fraction=0.1
+	# selected=[]
+	# for i in range(0,int(n*fraction)):
+	# 	x=int(uniform(0,n))
+	# 	if x not in selected:
+	# 		selected.append(x)
+	# selected.sort()
+	# print(selected,len(selected))
+	# selected_answer=[]
+	# for item in selected:
+	# 	selected_answer.append(answer[item])
 
-	from fair_truth_inference_bias import FTI_bias
-	selected_truth,selected_bias,selected_sigma,selected_quality=FTI_bias(selected_answer,real_truth=truth)
+	# from fair_truth_inference_bias import FTI_bias
+	# selected_truth,selected_bias,selected_sigma,selected_quality=FTI_bias(selected_answer,real_truth=truth)
 
-	collected_answer=[]
-	for i in range(0,len(answer)):
-		collected_answer.append([])
-		for j in range(0,len(answer[i])):
-			collected_answer[-1].append([])
-			for k in range(0,len(answer[i][j])):
-				collected_answer[-1][-1].append(None)
-	for i in range(0,len(selected)):
-		collected_answer[selected[i]]=answer[selected[i]]
+	# collected_answer=[]
+	# for i in range(0,len(answer)):
+	# 	collected_answer.append([])
+	# 	for j in range(0,len(answer[i])):
+	# 		collected_answer[-1].append([])
+	# 		for k in range(0,len(answer[i][j])):
+	# 			collected_answer[-1][-1].append(None)
+	# for i in range(0,len(selected)):
+	# 	collected_answer[selected[i]]=deepcopy(answer[selected[i]])
 
-	collected_bias=[]
-	for i in range(0,len(answer)):
-		collected_bias.append([])
-		for j in range(0,len(answer[i])):
-			collected_bias[-1].append(None)
-	for i in range(0,len(selected)):
-		collected_bias[selected[i]]=selected_bias[i]
+	# collected_bias=[]
+	# for i in range(0,len(answer)):
+	# 	collected_bias.append([])
+	# 	for j in range(0,len(answer[i])):
+	# 		collected_bias[-1].append(None)
+	# for i in range(0,len(selected)):
+	# 	collected_bias[selected[i]]=selected_bias[i]
 
-	print(collected_answer)
+	# collected_index=selected
+	# while True:
+	# 	if len(collected_index)==len(answer):
+	# 		break
+ 
+	# 	collected_truth,collected_bias,collected_sigma,collected_quality=FTI_bias(collected_answer,real_bias=collected_bias)
 
-	collected_index=selected
-	while True:
-		if len(collected_index)==len(answer):
-			break
+	# 	TP,TN,FP,FN=confusion_matrix(esti_truth=collected_truth,truth=truth)
+	# 	print(1.0*(TP+TN)/(TP+TN+FP+FN))
+	# 	print('\n')
 
-		collected_truth,collected_bias,collected_sigma,collected_quality=FTI_bias(collected_answer,real_bias=collected_bias)
-
-		TP,TN,FP,FN=confusion_matrix(esti_truth=collected_truth,truth=truth)
-		print((TP+TN)/(TP+TN+FP+FN))
-		print('\n')
-
-		exit()
-
-
-
+	# 	exit()
 
 
 	NTI_truth,NTI_bias,NTI_sigma,NTI_quality=NTI(answer,VLDB=False)
@@ -139,7 +134,7 @@ def realworld_crime():
 	print(measure_fair_acc(esti_truth=NTI_truth,truth=truth))
 	print('\n')
 
-	FTI_truth,FTI_bias,FTI_sigma,FTI_quality=FTI(answer,VLDB=False,with_fairness=False)
+	FTI_truth,FTI_bias,FTI_sigma,FTI_quality=FTI(answer)
 	TP,TN,FP,FN=confusion_matrix(esti_truth=FTI_truth,truth=truth)
 	print((TP+TN)/(TP+TN+FP+FN))
 	print(measure_fair_acc(esti_truth=FTI_truth,truth=truth))

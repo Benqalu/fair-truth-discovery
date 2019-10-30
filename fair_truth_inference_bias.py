@@ -70,7 +70,6 @@ def FTI_bias(answer,real_truth=None,real_bias=None,real_sigma=None,real_quality=
 					if acc_n==0:
 						bias[i][j]=None
 					else:
-						print(i,j)
 						bias[i][j]/=acc_n
 
 		for i in range(0,n):
@@ -78,7 +77,7 @@ def FTI_bias(answer,real_truth=None,real_bias=None,real_sigma=None,real_quality=
 			acc_n=0
 			for j in range(0,m):
 				for k in range(0,r[j]):
-					if answer[i][j][k]!=None:
+					if answer[i][j][k]!=None and truth[j][k]!=None:
 						sigma[i]+=(answer[i][j][k]-truth[j][k]-bias[i][j])**2
 						acc_n+=1
 			if acc_n==0:
@@ -88,13 +87,16 @@ def FTI_bias(answer,real_truth=None,real_bias=None,real_sigma=None,real_quality=
 
 		# Step 3: Calculate worker quality
 
-		quality_sum=0.0
-		for i in range(0,n):
-			if sigma[i]!=None:
-				quality[i]=1.0/(sigma[i]**2)
-				quality_sum+=quality[i]
-		for i in range(0,n):
-			if quality[i]!=None:
-				quality[i]=quality[i]/quality_sum
+		sum_q=0.0
+		for i in range(0,len(quality)):
+			if sigma[i]==None:
+				quality[i]=None
+				continue
+			quality[i]=1.0/sigma[i]**2
+			sum_q+=quality[i]
+		for i in range(0,len(quality)):
+			if quality[i]==None:
+				continue
+			quality[i]=quality[i]/sum_q+1E-10
 
 	return truth,bias,sigma,quality
