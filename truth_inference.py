@@ -96,24 +96,22 @@ def NTI(answer,VLDB=True):
 
 	return truth,None,sigma,quality
 
-def FTI(answer,VLDB=False,ground_truth=None):
+def FTI(answer,VLDB=False,with_fairness=False):
 
 	n=len(answer)
 	m=len(answer[0])
 	r=[len(answer[0][j]) for j in range(0,m)]
 
 	#Step 0: Give random initial numbers
-	truth=[[uniform(0.4,0.6) for k in range(0,r[j])] for j in range(0,m)]
+	truth=[[uniform(0.1,0.9) for k in range(0,r[j])] for j in range(0,m)]
 	bias=[[uniform(-0.1,0.1) for j in range(0,m)] for i in range(0,n)]
 	sigma=[0.0 for i in range(0,n)]
 	quality=[1.0/n for i in range(0,n)]
 	last_truth=np.array([])
 
+	last_truth=[]
 
 	while True:
-
-		TP,TN,FP,FN=confusion_matrix(esti_truth=truth,truth=ground_truth)
-		print(1.0*(TP+TN)/(TP+TN+FP+FN),end=' ')
 
 		if len(last_truth)!=0:
 			maxdiff=-1
@@ -121,49 +119,13 @@ def FTI(answer,VLDB=False,ground_truth=None):
 				for k in range(0,r[j]):
 					if last_truth[j][k]!=None and truth[j][k]!=None: 
 						maxdiff=max(maxdiff,abs(last_truth[j][k]-truth[j][k]))
-			print(maxdiff,end=' ')
+			# print(maxdiff)
 			if maxdiff<1E-5 and maxdiff>=0:
 				break
 			else:
 				pass
 
 		last_truth=deepcopy(truth)
-
-		#Step 0: Fairness correction
-
-		# 
-		# version 1: pull everything to 0.5
-		# votes=[[0.0,0.0] for i in range(0,m)]
-		# for j in range(0,m):
-		# 	for k in range(0,len(truth[j])):
-		# 		votes[j][0]+=1-truth[j][k]
-		# 		votes[j][1]+=truth[j][k]
-		# accept_rate=[]
-		# for j in range(0,m):
-		# 	accept_rate.append(1-abs(votes[j][0]-votes[j][1])/2.0/max(votes[j]))
-		# print(accept_rate)
-		# 
-
-		#version 2:pull everything to average
-		criminal_ratio=[sum(truth[j])/len(truth[j]) for j in range(0,m)]
-		criminal_average=0.0
-		criminal_count=0.0
-		for j in range(0,m):
-			for k in range(0,m):
-				criminal_average+=truth[j][k]
-				criminal_count+=1
-		criminal_average/=criminal_count
-		for i in range(0,m):
-			criminal_ratio[i]=criminal_ratio[i]-criminal_average
-		accept_ratio=[]
-		for i in range(0,m):
-			if criminal_ratio[i]>0:
-				accept_ratio.append(1-criminal_ratio[i]/criminal_average)
-			else:
-				accept_ratio.append(1-abs(criminal_ratio[i])/(1-criminal_average))
-		print(accept_ratio)
-		#
-
 
 		#Step 1: Estimate Truth
 		for j in range(0,m):
@@ -172,14 +134,7 @@ def FTI(answer,VLDB=False,ground_truth=None):
 				acc_q=0.0
 				for i in range(0,n):
 					if answer[i][j][k]!=None:
-						# if (votes[j][1]<=votes[j][0] and bias[i][j]>=0) or (votes[j][0]<=votes[j][1] and bias[i][j]<=0) or uniform(0,1)<accept_rate[j]:
-						# 	truth[j][k]+=(answer[i][j][k]-bias[i][j])*quality[i]
-						# else:
-						# 	truth[j][k]+=(answer[i][j][k])*quality[i]
-						if bias[i][j]*criminal_ratio[j]<0 or uniform(0,1)<accept_ratio[j]:
-							truth[j][k]+=(answer[i][j][k]-bias[i][j])*quality[i]
-						else:
-							truth[j][k]+=(answer[i][j][k])*quality[i]
+						truth[j][k]+=(answer[i][j][k]-bias[i][j])*quality[i]
 						acc_q+=quality[i]
 				if acc_q==0:
 					truth[j][k]=None

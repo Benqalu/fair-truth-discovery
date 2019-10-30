@@ -11,7 +11,7 @@ def FTI(answer):
 	quality=[1.0/n for i in range(0,n)]
 	last_truth=np.array([])
 
-	while True:
+	for _ in range(0,30):
 
 		if last_truth.size!=0:
 			maxdiff=-1
