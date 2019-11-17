@@ -5,7 +5,6 @@ from scipy.stats import pearsonr
 from scipy.stats import chi2
 from math import exp
 from copy import deepcopy
-from metric import *
 
 def clipped(x,a,b):
 	if x<a:
@@ -96,22 +95,68 @@ def NTI(answer,VLDB=True):
 
 	return truth,None,sigma,quality
 
-def FTI(answer,VLDB=False,with_fairness=False):
-
+def FTI(answer,VLDB=False,init_bias=None,init_truth=None,init_sigma=None,init_quality=None,theta=0.01):
+	# answer only, no reject
 	n=len(answer)
 	m=len(answer[0])
 	r=[len(answer[0][j]) for j in range(0,m)]
 
 	#Step 0: Give random initial numbers
-	truth=[[uniform(0.1,0.9) for k in range(0,r[j])] for j in range(0,m)]
-	bias=[[uniform(-0.1,0.1) for j in range(0,m)] for i in range(0,n)]
-	sigma=[0.0 for i in range(0,n)]
-	quality=[1.0/n for i in range(0,n)]
+	if init_truth != None:
+		truth=init_truth
+	else:
+		truth=[[uniform(0.1,0.9) for k in range(0,r[j])] for j in range(0,m)]
+	if init_bias != None:
+		bias=init_bias
+	else:
+		bias=[[uniform(-0.1,0.1) for j in range(0,m)] for i in range(0,n)]
+	if init_sigma != None:
+		sigma=init_sigma
+	else:
+		sigma=[0.0 for i in range(0,n)]
+	if init_quality != None:
+		quality=init_quality
+	else:
+		quality=[1.0/n for i in range(0,n)]
+
+	# print(sigma)
+
 	last_truth=np.array([])
 
-	last_truth=[]
+	disparity=np.array([0.0 for i in range(0,m)])
 
 	while True:
+
+		if init_truth!=None:
+			disparity_self=[[0.0,0.0] for i in range(0,m)]
+			for j in range(0,m):
+				for k in range(0,len(truth[j])):
+					if truth[j][k]==None:
+						continue
+					disparity_self[j][1]+=1
+					if truth[j][k]>0.5:
+						disparity_self[j][0]+=1
+			for j in range(0,m):
+				disparity_self[j]=disparity_self[j][0]/disparity_self[j][1]
+
+			disparity_other=[[0.0,0.0] for i in range(0,m)]
+			for j_ in range(0,m):
+				for j in range(0,m):
+					if j==j_:
+						continue
+					for k in range(0,len(truth[j])):
+						if truth[j][k]==None:
+							continue
+						disparity_other[j_][1]+=1
+						if truth[j][k]>0.5:
+							disparity_other[j_][0]+=1
+			for j in range(0,m):
+				disparity_other[j]=disparity_other[j][0]/disparity_other[j][1]
+
+			disparity=[]
+			for j in range(0,m):
+				disparity.append(disparity_self[j]-disparity_other[j])
+			disparity=np.array(disparity)
 
 		if len(last_truth)!=0:
 			maxdiff=-1
@@ -119,8 +164,8 @@ def FTI(answer,VLDB=False,with_fairness=False):
 				for k in range(0,r[j]):
 					if last_truth[j][k]!=None and truth[j][k]!=None: 
 						maxdiff=max(maxdiff,abs(last_truth[j][k]-truth[j][k]))
-			# print(maxdiff)
-			if maxdiff<1E-5 and maxdiff>=0:
+			# print(maxdiff,disparity)
+			if maxdiff<1E-2 and maxdiff>=0 and max(abs(disparity))<theta:
 				break
 			else:
 				pass
@@ -134,7 +179,13 @@ def FTI(answer,VLDB=False,with_fairness=False):
 				acc_q=0.0
 				for i in range(0,n):
 					if answer[i][j][k]!=None:
-						truth[j][k]+=(answer[i][j][k]-bias[i][j])*quality[i]
+						if init_truth!=None and init_bias!=None:
+							if bias[i][j]*disparity[j]>0 or uniform(0,1)>abs(disparity[j]/2.0):
+								truth[j][k]+=(answer[i][j][k]-bias[i][j])*quality[i]
+							else:
+								truth[j][k]+=answer[i][j][k]*quality[i]
+						else:
+							truth[j][k]+=(answer[i][j][k]-bias[i][j])*quality[i]
 						acc_q+=quality[i]
 				if acc_q==0:
 					truth[j][k]=None
@@ -155,17 +206,21 @@ def FTI(answer,VLDB=False,with_fairness=False):
 				else:
 					bias[i][j]/=acc_n
 
-		# print(bias)
-
 		for i in range(0,n):
 			sigma[i]=0.0
 			acc_n=0
 			for j in range(0,m):
 				for k in range(0,r[j]):
 					if answer[i][j][k]!=None:
+						# print(answer[i][j][k])
+						# print(truth[j][k])
+						# print(bias[i][j])
 						sigma[i]+=(answer[i][j][k]-truth[j][k]-bias[i][j])**2
+						# print(sigma[i])
 						acc_n+=1
 			sigma[i]=np.sqrt(sigma[i]/acc_n)
+
+		# print(sigma)
 
 		# Step 3: Calculate worker quality
 		if not VLDB:
@@ -197,5 +252,3 @@ def FTI(answer,VLDB=False,with_fairness=False):
 				quality[i]/=quality_sum
 
 	return truth,bias,sigma,quality
-
-
