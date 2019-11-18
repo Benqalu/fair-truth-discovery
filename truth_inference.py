@@ -158,6 +158,9 @@ def FTI(answer,VLDB=False,init_bias=None,init_truth=None,init_sigma=None,init_qu
 				disparity.append(disparity_self[j]-disparity_other[j])
 			disparity=np.array(disparity)
 
+			print(disparity.tolist(),'\r',end=' ')
+			sys.stdout.flush()
+
 		if len(last_truth)!=0:
 			maxdiff=-1
 			for j in range(0,m):
@@ -180,7 +183,7 @@ def FTI(answer,VLDB=False,init_bias=None,init_truth=None,init_sigma=None,init_qu
 				for i in range(0,n):
 					if answer[i][j][k]!=None:
 						if init_truth!=None and init_bias!=None:
-							if bias[i][j]*disparity[j]>0 or uniform(0,1)>abs(disparity[j]/2.0):
+							if bias[i][j]*disparity[j]>0 or uniform(0,1)>abs(disparity[j]):
 								truth[j][k]+=(answer[i][j][k]-bias[i][j])*quality[i]
 							else:
 								truth[j][k]+=answer[i][j][k]*quality[i]

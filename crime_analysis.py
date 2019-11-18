@@ -158,13 +158,13 @@ def experiment_results_accuracy_disparity(theta,ground_truth,turn=100):
 
 if __name__=='__main__':
 
-	A='race'
+	A='gender'
 
 	answer,truth,workerid=realworld_crime(A=A)
 
 	for theta in range(1,101):
 		print('theta =',theta*0.01)
-		accuracy,disparity=experiment_results_accuracy_disparity(theta=0.01*theta,ground_truth=truth,turn=10)
+		accuracy,disparity=experiment_results_accuracy_disparity(theta=0.01*theta,ground_truth=truth,turn=100)
 		print('')
 
 		f=open('result/theta_%s.txt'%A,'a')
