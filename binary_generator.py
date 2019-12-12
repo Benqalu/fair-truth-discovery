@@ -2,7 +2,7 @@ import numpy as np
 # from numpy.random import *
 from random import uniform,gauss
 from majority_voting import majority_voting
-from truth_inference import FTI
+from truth_inference import FTI,NTI
 
 def clipped(x,a,b):
 	if x<a:
@@ -10,6 +10,16 @@ def clipped(x,a,b):
 	if x>b:
 		return b
 	return x
+
+def accuracy(esti_truth,gtruth):
+	up=0
+	down=0
+	for i in range(len(esti_truth)):
+		for j in range(len(esti_truth[i])):
+			if (esti_truth[i][j]>=0.5 and gtruth[i][j]>=0.5) or (esti_truth[i][j]<0.5 and gtruth[i][j]<0.5):
+				up+=1
+			down+=1
+	return up/down
 
 def disparity(truth,ground_truth,binary=True,threshold=0.5):
 
@@ -65,7 +75,7 @@ def data_generator(task_n,worker_n,category_n,ratio=0.2):
 
 	sigma=[]
 	for i in range(worker_n):
-		sigma.append(uniform(0.01,3.0))
+		sigma.append(uniform(0.01,6.0))
 
 	bias=[]
 	for i in range(worker_n):
@@ -106,17 +116,20 @@ if __name__=='__main__':
 	# 		ratio=0.10
 	# 	)		
 
-	# 	truth=truth
-	# 	mv_truth=majority_voting(answer)
+	# 	truth_nti,_,_,_=NTI(answer)
+	# 	disp=disparity(truth=truth_nti,ground_truth=truth)
+	# 	acc_nti=accuracy(esti_truth=truth_nti,gtruth=truth)
 
-	# 	disp=disparity(truth=mv_truth,ground_truth=truth)
+	# 	print('Accuracy_NTI =',acc_nti,disp)
 
-	# 	acc=(np.array(truth)==np.array(mv_truth)).sum()/(category_n*task_n)
-
-	# 	print(disp,acc)
-
-	# 	if abs(disp[0])>0.15 and acc<0.85:
-	# 		break
+	# 	if abs(disp[0])>0.10 and acc_nti<0.82:
+	# 		esti_truth,esti_bias,sigma,quality=FTI(answer)
+	# 		acc_fti_1=accuracy(esti_truth=esti_truth,gtruth=truth)
+	# 		# esti_truth,esti_bias,sigma,quality=FTI(answer,init_bias=esti_bias,init_truth=esti_truth,init_sigma=sigma,init_quality=quality,theta=0.01)
+	# 		# acc_fti_2=accuracy(esti_truth=esti_truth,gtruth=truth)
+	# 		print('Accuracy FTI =',acc_fti_1)
+	# 		if acc_fti_1>acc_nti:
+	# 			break
 
 	# f=open('synthetic_worker%d_task%d_category%d.txt'%(worker_n,task_n,category_n),'w')
 	# f.write(str(answer)+'\n')
@@ -128,9 +141,15 @@ if __name__=='__main__':
 	truth=eval(f.readline())
 	f.close()
 
-	esti_truth,bias,sigma,quality=FTI(answer)
+	esti_truth,esti_bias,sigma,quality=NTI(answer,VLDB=True)
+	acc_fti_1=accuracy(esti_truth=esti_truth,gtruth=truth)
+	print(acc_fti_1)
 
-	for j in range(len(esti_truth)):
-		for k in range(len(esti_truth[j])):
-			if esti_truth[j][k]==None:
-				print(j,k)
+	# esti_truth,esti_bias,sigma,quality=FTI(answer)
+	# acc_fti_1=accuracy(esti_truth=esti_truth,gtruth=truth)
+	# print(acc_fti_1)
+
+
+	# esti_truth,esti_bias,sigma,quality=FTI(answer,init_bias=esti_bias,init_truth=esti_truth,init_sigma=sigma,init_quality=quality,theta=0.01)
+	# acc_fti_2=accuracy(esti_truth=esti_truth,gtruth=truth)
+	# print(acc_fti_2)
