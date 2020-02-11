@@ -23,16 +23,16 @@ This is the code for paper titled "Towards Fair Truth Discovery from Biased Crow
 
 	- Post-processing
 		* Post-processing is designed by combining one of three basic truth discovery algorithms with massaging approach: 
-			(1) Majority Voting;
-			(2) EM Algorithm;
-			(3) CATD in paper "A confidence-aware approach for truth discovery on long-tail data" by Li et al.
+			(1) Majority Voting;  
+			(2) EM Algorithm;  
+			(3) CATD in paper "A confidence-aware approach for truth discovery on long-tail data" by Li et al.  
 
 		* The massaging approaches comes from paper "Data preprocessing techniques for classification without discrimination" by Kamiran et al.
 
 		* There all three approaches are in file "post_processing.py". The names of functions are:
-			(1) FairTD_Post_MV(answer,theta)
-			(2) FairTD_Post_EM(answer,theta)
-			(3) FairTD_Post_CATD(answer,theta)
+			(1) FairTD_Post_MV(answer,theta)  
+			(2) FairTD_Post_EM(answer,theta)  
+			(3) FairTD_Post_CATD(answer,theta)  
 
 3. Tools
 
