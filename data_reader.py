@@ -1,5 +1,5 @@
 
-def read_data(A='race'):
+def data_crowdjudgement(A='race'):
 
 	f=open('./crowd_judgement/truth')
 	truth=eval(f.readline())
@@ -57,3 +57,9 @@ def read_data(A='race'):
 		truth=truth[:2]
 
 	return answer,truth,workerid
+
+def data_synthetic():
+	f=open('./synthetic/data')
+	answer=eval(f.readline())
+	truth=eval(f.readline())
+	f.close()
