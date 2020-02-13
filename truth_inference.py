@@ -1,7 +1,6 @@
 import numpy as np
 from random import *
 import sys,itertools,os
-from scipy.stats import pearsonr
 from scipy.stats import chi2
 from math import exp
 from copy import deepcopy
