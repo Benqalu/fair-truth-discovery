@@ -1,12 +1,22 @@
 # fair-truth-discovery
 
-This is the code for paper titled "Towards Fair Truth Discovery from Biased Crowdsourced Answers" for SIGKDD'20 submission.
+This is the code for paper titled "Towards Fair Truth Discovery from Biased Crowdsourced Answers" for SIGKDD'20 submission. Would be glad if it helps, and if it does please do us a favor and cite the following paper:
+
+```
+@inproceedings{li2020towards,
+  title={Towards Fair Truth Discovery from Biased Crowdsourced Answers},
+  author={Li, Yanying and Sun, Haipei and Wang, Wendy Hui},
+  booktitle={Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining},
+  pages={599--607},
+  year={2020}
+}
+```
 
 1. Data
 
 	- Crowd Judgement dataset:
 		
-		* This dataset comes from https://farid.berkeley.edu/downloads/publications/scienceadvances17/
+		* This dataset comes from [here](https://farid.berkeley.edu/downloads/publications/scienceadvances17/)
 
 		* The data is processed and can be read by file file "data_reader.py", just import it and call "data_crowdjudgement(A)", where A is the parameter from ["race"|"gender"]. This function will return three lists/matrices: answer, truth and workerid.
 
